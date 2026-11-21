@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perde — projeksiyon için ana ekran</title>
+<meta name="description" content="Perde: HY350 projeksiyon için sade, sessiz ve hızlı Android TV ana ekranı. Dört büyük panel, Wi-Fi ve Bluetooth ekranları, görüntü ayarları ve 4 köşe düzeltme. Ücretsiz ve açık kaynak.">
+<meta property="og:title" content="Perde — home screen for projectors">
+<meta property="og:description" content="A clean, silent and fast Android TV home screen for the HY350 projector. Free and open source.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://acarplus.github.io/perde/">
+<meta name="theme-color" content="#07090d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff5a6e'/%3E%3Cstop offset='1' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='18' fill='url(%23g)'/%3E%3Cpath d='M10 13h44M15 13v38c7 0 11-5 11-13V13M49 13v38c-7 0-11-5-11-13V13M22 57h20' stroke='%232a0710' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script>(function(){var h=document.documentElement;h.classList.add('js');try{var q=new URLSearchParams(location.search).get('lang'),s=localStorage.getItem('dil');h.lang=q==='en'||q==='tr'?q:s||((navigator.language||'tr').toLowerCase().indexOf('tr')===0?'tr':'en')}catch(e){}})()</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="aile.css">
+<style>
+  :root { --a: #ff5a6e; --a2: #8b5cf6; --a-rgb: 255, 90, 110; --a2-rgb: 139, 92, 246; --a-fg: #2a0710; }
+  @media (prefers-color-scheme: light) { :root { --ink: #d1263e; --ink2: #6d3fe0; } }
+
+  .shot { width: 100%; height: auto; aspect-ratio: 16 / 9; background: var(--bg-2); }
+  .win .shot { border-radius: 0; }
+
+  /* showcase: picture settings */
+  .show { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+  .show .pic { position: relative; border-radius: 18px; overflow: hidden; border: 1px solid var(--line-2); box-shadow: var(--shadow); background: var(--surface); }
+  .show .pic img { width: 100%; height: auto; aspect-ratio: 1192 / 972; }
+  .show h2 { margin-bottom: 14px; }
+  .show .sub { margin-bottom: 22px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 4px; padding: 0; list-style: none; }
+  .chips li { padding: 6px 12px; border-radius: 999px; font-size: 13.5px; color: var(--muted); border: 1px solid var(--line-2); background: var(--card); }
+  .chips li.on { color: var(--a-fg); border-color: transparent; background: linear-gradient(135deg, var(--a), var(--a2)); font-weight: 600; }
+  .extras { margin: 28px 0 0; padding: 16px 20px; border-radius: 16px; border: 1px dashed var(--line-2); color: var(--muted); font-size: 15.5px; }
+  .extras b { color: var(--fg); font-weight: 600; }
+
+  /* compatibility note */
+  .note { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: start; border-color: rgba(var(--a-rgb), .4);
+    background: linear-gradient(135deg, rgba(var(--a-rgb), .1), rgba(var(--a2-rgb), .06)), var(--card); }
+  .note .ic { margin: 0; }
+  .note h3 { font-size: 20px; }
+  .note p + p { margin-top: 10px; }
+
+  /* install code blocks */
+  .codeblk { display: block; margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(var(--bg-rgb), .55);
+    font: 600 13px/1.55 var(--mono); color: var(--fg); white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
+  .step .opt { margin-top: 14px; font-size: 14px; }
+  .undo { margin-top: 16px; }
+
+  @media (max-width: 980px) { .show { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
+  @media (max-width: 640px) { .note { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+</style>
+</head>
+<body data-app="perde" data-repo="AcarPlus/perde" data-title-tr="Perde — projeksiyon için ana ekran" data-title-en="Perde — home screen for projectors">
+<div class="backdrop" aria-hidden="true"><div class="aurora a1"></div><div class="aurora a2"></div></div>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#"><span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18M5 4v15c2.5 0 4-2 4-5V4M19 4v15c-2.5 0-4-2-4-5V4M8 21h8"/></svg></span>Perde</a>
+    <nav class="links" aria-label="Bölümler">
+      <a href="#ozellikler"><span data-tr>Özellikler</span><span data-en>Features</span></a>
+      <a href="#goruntu"><span data-tr>Görüntü</span><span data-en>Picture</span></a>
+      <a href="#kurulum"><span data-tr>Kurulum</span><span data-en>Install</span></a>
+      <a href="#sss"><span data-tr>SSS</span><span data-en>FAQ</span></a>
+    </nav>
+    <span class="sp"></span>
+    <button class="iconbtn" id="dil" type="button">EN</button>
+    <a class="iconbtn" href="https://github.com/AcarPlus/perde" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+    <a class="btn primary small cta" href="https://github.com/AcarPlus/perde/releases/latest" data-asset="perde.*\.apk"><span data-tr>İndir</span><span data-en>Download</span></a>
+  </div>
+</header>
+
+<main>
+<section class="hero" style="padding-top:64px">
+  <div class="wrap">
+    <div class="rv">
+      <a class="pill" href="https://github.com/AcarPlus/perde/releases/latest"><b data-ver>v3.5</b><span data-tr>HY350 için · Android TV</span><span data-en>For the HY350 · Android TV</span></a>
+      <h1><span data-tr>Projeksiyon için <span class="grad">sade, sessiz</span> ve hızlı ana ekran.</span><span data-en>A clean, <span class="grad">silent</span> and fast home screen for your projector.</span></h1>
+      <p class="lead" data-tr>HY350 için yazıldı: dört büyük panel, kendi Wi-Fi ve Bluetooth ekranları, görüntü ayarları ve 4 köşe düzeltme — hepsi kumandayla.</p>
+      <p class="lead" data-en>Written for the HY350: four big panels, its own Wi-Fi and Bluetooth screens, picture settings and 4-corner correction, all from the remote.</p>
+      <div class="btns">
+        <a class="btn primary" href="https://github.com/AcarPlus/perde/releases/latest" data-asset="perde.*\.apk">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 20h14"/></svg>
+          <span data-tr>APK'yı indir</span><span data-en>Download the APK</span>
+        </a>
+        <a class="btn ghost" href="https://github.com/AcarPlus/perde">
+          <svg class="gh" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          <span data-tr>Kaynak kodu</span><span data-en>Source code</span>
+        </a>
+      </div>
+      <div class="meta">
+        <span>Android TV</span>
+        <span data-tr>Ücretsiz, açık kaynak</span><span data-en>Free &amp; open source</span>
+        <span data-tr>Arayüz Türkçe</span><span data-en>Turkish interface</span>
+      </div>
+    </div>
+
+    <div class="stage rv">
+      <div class="win">
+        <div class="win-bar"><i></i><i></i><i></i><span>Perde</span></div>
+        <img class="shot" src="img/ana-ekran.jpg" width="1920" height="1080" alt="Perde ana ekranı" fetchpriority="high">
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap rv">
+  <div class="stats">
+    <div><b>4</b><span data-tr>büyük panel: YouTube, Stremio, HDMI, USB</span><span data-en>big panels: YouTube, Stremio, HDMI, USB</span></div>
+    <div><b data-tr>Kumanda</b><b data-en>Remote</b><span data-tr>her şey ok tuşlarıyla</span><span data-en>everything by arrow keys</span></div>
+    <div><b>&lt;30 fps</b><span data-tr>altında efektler kendiliğinden hafifler</span><span data-en>and the effects ease off on their own</span></div>
+    <div><b>MIT</b><span data-tr>ücretsiz ve açık kaynak</span><span data-en>free and open source</span></div>
+  </div>
+</div>
+
+<section id="ozellikler">
+  <div class="wrap">
+    <div class="rv">
+      <div class="eyebrow"><span data-tr>Özellikler</span><span data-en>Features</span></div>
+      <h2 data-tr>Projeksiyonun ana ekranı olması gerektiği gibi.</h2>
+      <h2 data-en>The home screen a projector deserves.</h2>
+      <p class="sub" data-tr>Üreticinin kalabalık arayüzü yerine, uzaktan ve kumandayla rahat kullanılan sade bir ekran.</p>
+      <p class="sub" data-en>Instead of the crowded stock interface, a plain screen that is easy to use from across the room with a remote.</p>
+    </div>
+    <div class="bento">
+      <div class="card rv">
+        <div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></svg></div>
+        <h3 data-tr>Dört büyük panel</h3><h3 data-en>Four big panels</h3>
+        <p data-tr>YouTube, Stremio, HDMI, USB. Her panelin kendi canlı sahnesi var.</p>
+        <p data-en>YouTube, Stremio, HDMI, USB. Each panel has its own live scene.</p>
+      </div>
+      <div class="card rv">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></div>
+        <h3 data-tr>Kaldığın yerden devam</h3><h3 data-en>Continue where you left off</h3>
+        <p data-tr>Son izlediğin videonun kapağı, adı ve ilerlemesi panelde görünür.</p>
+        <p data-en>The cover, title and progress of the last video you watched show up right on the panel.</p>
+      </div>
+      <div class="card rv">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10.5 10.5 0 0 1 14 0M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg></div>
+        <h3 data-tr>Wi-Fi ve Bluetooth</h3><h3 data-en>Wi-Fi and Bluetooth</h3>
+        <p data-tr>Ağ seç, şifreyle bağlan; hoparlör ya da kulaklığı eşleştir ve bağla. Üreticinin mavi ekranları yok.</p>
+        <p data-en>Pick a network and connect with a password; pair and connect a speaker or headphones. No more of the manufacturer's blue screens.</p>
+      </div>
+      <div class="card w2 rv">
+        <div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg></div>
+        <h3 data-tr>Görüntü ayarları</h3><h3 data-en>Picture settings</h3>
+        <p data-tr>Parlaklık, kontrast, renk doygunluğu, renk sıcaklığı ve kırmızı/yeşil/mavi dengesi. Hazır profiller de var; ayar anında uygulanır.</p>
+        <p data-en>Brightness, contrast, colour saturation, colour temperature and red/green/blue balance, plus ready-made profiles. Changes apply instantly.</p>
+        <ul class="chips" style="margin-top:18px">
+          <li class="on">Sinema</li><li>Sıcak</li><li>Soğuk</li><li>Canlı</li><li>Göz dostu</li>
+        </ul>
+      </div>
+      <div class="card rv">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M4 4h5M4 4v5M20 4h-5M20 4v5M4 20h5M4 20v-5M20 20h-5M20 20v-5"/><path d="M10 12h4M12 10v4"/></svg></div>
+        <h3 data-tr>4 köşe düzeltme</h3><h3 data-en>4-corner correction</h3>
+        <p data-tr>Kumandanın ok tuşlarıyla, üreticinin yöntemiyle.</p>
+        <p data-en>With the remote's arrow keys, using the manufacturer's own method.</p>
+      </div>
+      <div class="card w2 rv">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5z"/></svg></div>
+        <h3 data-tr>Sessiz ve serin</h3><h3 data-en>Silent and cool</h3>
+        <p data-tr>Arayüz sesi yok. Boştayken animasyonlar durur; kare hızı 30'un altına düşerse efektler kendiliğinden hafifler. Projeksiyon ısınmaz, fan gereksiz yere hızlanmaz.</p>
+        <p data-en>No interface sounds. Animations stop when idle, and if the frame rate drops below 30 the effects lighten up on their own. Less heat, no needless fan noise.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="goruntu">
+  <div class="wrap">
+    <div class="show">
+      <div class="pic rv"><img src="img/goruntu.jpg" width="1192" height="972" alt="Görüntü ayarları" loading="lazy"></div>
+      <div class="rv">
+        <div class="eyebrow"><span data-tr>Görüntü ayarları</span><span data-en>Picture settings</span></div>
+        <h2 data-tr>Odayı değil, görüntüyü ayarla.</h2>
+        <h2 data-en>Tune the picture, not the room.</h2>
+        <p class="sub" data-tr>Parlaklıktan renk dengesine kadar her ayar tek ekranda, kumandayla. Hazır profillerden birini seç ya da kendin ince ayar yap.</p>
+        <p class="sub" data-en>Everything from brightness to colour balance on one screen, by remote. Pick a ready-made profile or fine-tune it yourself.</p>
+        <ul class="ticks">
+          <li data-tr><b>Anında uygulanır:</b> değer değişince görüntü hemen değişir.</li>
+          <li data-en><b>Applies instantly:</b> the picture changes as soon as you change a value.</li>
+          <li data-tr><b>Hazır profiller:</b> Sinema, Sıcak, Soğuk, Canlı, Göz dostu.</li>
+          <li data-en><b>Ready-made profiles:</b> Cinema, Warm, Cool, Vivid, Eye-friendly.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="extras rv" data-tr><b>Ayrıca:</b> temalar, uyku zamanlayıcısı, gece modu, USB bellek takılınca VLC ile açma, HDMI kablo algılama.</p>
+    <p class="extras rv" data-en><b>Also:</b> themes, a sleep timer, night mode, opening a USB stick in VLC when you plug it in, and HDMI cable detection.</p>
+  </div>
+</section>
+
+<section id="uyumluluk">
+  <div class="wrap">
+    <div class="card note rv">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v5M12 18h.01"/></svg></div>
+      <div>
+        <h3 data-tr>Uyumluluk</h3><h3 data-en>Compatibility</h3>
+        <p data-tr>Perde, Wi-Fi/Bluetooth bağlantısı, 4 köşe ve renk ayarı için sistem uygulaması olarak imzalıdır (Android'in herkese açık AOSP test anahtarıyla). Bu yüzden yalnızca bu anahtarla üretilmiş cihazlara kurulur — HY350 bunlardan biri. Uyumsuz cihazda kurulum <code>INSTALL_FAILED_SHARED_USER_INCOMPATIBLE</code> hatasıyla reddedilir, cihaza bir şey olmaz. Arayüz Türkçedir.</p>
+        <p data-en>To reach Wi-Fi/Bluetooth, 4-corner and colour settings, Perde is signed as a system app (with Android's public AOSP test key). So it only installs on devices built with that key — the HY350 is one of them. On an incompatible device the install is rejected with <code>INSTALL_FAILED_SHARED_USER_INCOMPATIBLE</code> and nothing happens to the device. The interface is in Turkish.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="kurulum">
+  <div class="wrap">
+    <div class="rv">
+      <div class="eyebrow"><span data-tr>Kurulum</span><span data-en>Install</span></div>
+      <h2 data-tr>Üç adımda ana ekran olsun.</h2>
+      <h2 data-en>Make it your home screen in three steps.</h2>
+      <p class="sub" data-tr>Kurulum bilgisayardan ADB ile yapılır. Telefon ya da projeksiyondan Play Store gerekmez.</p>
+      <p class="sub" data-en>Installation is done from a computer with ADB. No Play Store needed on the projector.</p>
+    </div>
+    <div class="steps">
+      <div class="card step rv"><div class="num"></div>
+        <h3 data-tr>ADB'yi hazırla</h3><h3 data-en>Get ADB ready</h3>
+        <p data-tr>Projeksiyonda ağ üzerinden ADB'yi aç ve IP adresini öğren. Bilgisayara <a href="https://developer.android.com/tools/releases/platform-tools">Android platform-tools</a> kur.</p>
+        <p data-en>Turn on network ADB on the projector and note its IP address. Install the <a href="https://developer.android.com/tools/releases/platform-tools">Android platform-tools</a> on your computer.</p>
+      </div>
+      <div class="card step rv"><div class="num"></div>
+        <h3 data-tr>Bağlan ve kur</h3><h3 data-en>Connect and install</h3>
+        <p data-tr><a href="https://github.com/AcarPlus/perde/releases/latest" data-asset="perde.*\.apk">perde.apk</a> dosyasını indirip şunları çalıştır:</p>
+        <p data-en>Download <a href="https://github.com/AcarPlus/perde/releases/latest" data-asset="perde.*\.apk">perde.apk</a> and run:</p>
+        <code class="codeblk">adb connect &lt;ip&gt;:5555
+adb install perde.apk</code>
+      </div>
+      <div class="card step rv"><div class="num"></div>
+        <h3 data-tr>Ana ekran yap</h3><h3 data-en>Set as home screen</h3>
+        <p data-tr>Perde'yi varsayılan ana ekran olarak ata:</p>
+        <p data-en>Set Perde as the default home screen:</p>
+        <code class="codeblk">adb shell cmd package set-home-activity com.perde.launcher/.MainActivity</code>
+      </div>
+    </div>
+    <div class="card rv undo">
+      <h3 data-tr>İsteğe bağlı: kaldığın yerden devam</h3><h3 data-en>Optional: continue where you left off</h3>
+      <p data-tr>Son izlediğin videoyu panelde göstermek için bildirim erişimi ver:</p>
+      <p data-en>To show your last watched video on the panel, grant notification access:</p>
+      <code class="codeblk">adb shell cmd notification allow_listener com.perde.launcher/com.perde.launcher.MediaWatcher</code>
+    </div>
+    <div class="card rv undo">
+      <h3 data-tr>Geri almak</h3><h3 data-en>Undo</h3>
+      <p data-tr>Perde'yi kaldırınca eski ana ekran geri gelir:</p>
+      <p data-en>Uninstall Perde and the old home screen comes back:</p>
+      <code class="codeblk">adb uninstall com.perde.launcher</code>
+    </div>
+    <p class="req rv" data-tr><b>Gerekenler:</b> HY350 (ya da AOSP test anahtarıyla üretilmiş bir Android TV cihazı) ve ADB'li bir bilgisayar. Ayrıntı için yukarıdaki <a href="#uyumluluk">uyumluluk notuna</a> bak.</p>
+    <p class="req rv" data-en><b>Requirements:</b> an HY350 (or an Android TV device built with the AOSP test key) and a computer with ADB. See the <a href="#uyumluluk">compatibility note</a> above.</p>
+  </div>
+</section>
+
+<section id="sss">
+  <div class="wrap">
+    <div class="center rv">
+      <div class="eyebrow"><span data-tr>SSS</span><span data-en>FAQ</span></div>
+      <h2 data-tr>Sık sorulanlar</h2><h2 data-en>Questions, answered</h2>
+      <p class="sub"></p>
+    </div>
+    <div class="faq">
+      <details class="rv">
+        <summary><span data-tr>Ok tuşlarında tık sesi geliyor</span><span data-en>The arrow keys make a click sound</span></summary>
+        <p data-tr>Bu ses Perde'den değil, cihazın Android Klavyesinden gelir. Android Klavye Ayarları › Tercihler › "Tuşa basıldığında ses çıkar" seçeneğini kapatınca susar.</p>
+        <p data-en>The sound doesn't come from Perde but from the device's Android Keyboard. Turn off Android Keyboard Settings › Preferences › "Sound on keypress" (the Turkish label is "Tuşa basıldığında ses çıkar") and it goes quiet.</p>
+      </details>
+      <details class="rv">
+        <summary><span data-tr>Kurulum "INSTALL_FAILED_SHARED_USER_INCOMPATIBLE" hatası verdi</span><span data-en>The install failed with "INSTALL_FAILED_SHARED_USER_INCOMPATIBLE"</span></summary>
+        <p data-tr>Cihazın sistem imzası Perde'ninkiyle uyuşmuyor; Perde yalnızca AOSP test anahtarıyla üretilmiş cihazlara kurulur. Cihaza bir şey olmaz, kurulum yalnızca reddedilir.</p>
+        <p data-en>The device's system signature doesn't match Perde's: it only installs on devices built with the AOSP test key. Nothing happens to the device; the install is simply refused.</p>
+      </details>
+      <details class="rv">
+        <summary><span data-tr>Nasıl kaldırırım?</span><span data-en>How do I uninstall it?</span></summary>
+        <p data-tr>Bilgisayardan <code>adb uninstall com.perde.launcher</code> çalıştır. Eski ana ekran geri gelir.</p>
+        <p data-en>Run <code>adb uninstall com.perde.launcher</code> from your computer. The old home screen comes back.</p>
+      </details>
+      <details class="rv">
+        <summary><span data-tr>Arayüz İngilizce mi?</span><span data-en>Is the interface in English?</span></summary>
+        <p data-tr>Hayır, arayüz Türkçedir.</p>
+        <p data-en>No. The interface is in Turkish.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="band rv">
+      <h2 data-tr>Perdeyi <span class="grad">aç.</span></h2>
+      <h2 data-en>Open the <span class="grad">curtain.</span></h2>
+      <p class="sub" data-tr>Ücretsiz, açık kaynak, MIT lisanslı.</p>
+      <p class="sub" data-en>Free, open source, MIT licensed.</p>
+      <div class="btns">
+        <a class="btn primary" href="https://github.com/AcarPlus/perde/releases/latest" data-asset="perde.*\.apk"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 20h14"/></svg><span data-tr>APK'yı indir</span><span data-en>Download the APK</span></a>
+        <a class="btn ghost" href="https://github.com/AcarPlus/perde/issues"><span data-tr>Sorun bildir</span><span data-en>Report an issue</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:72px">
+  <div class="wrap">
+    <div class="eyebrow rv"><span data-tr>Aynı aileden</span><span data-en>From the same family</span></div>
+    <div class="family rv" id="aile"></div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <a class="brand" href="#"><span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18M5 4v15c2.5 0 4-2 4-5V4M19 4v15c-2.5 0-4-2-4-5V4M8 21h8"/></svg></span>Perde</a>
+    <div>
+      <p data-tr>MIT lisansı. HTC, YouTube, Stremio ve VLC adları sahiplerinindir; Perde bunlarla bağlantılı değildir.</p>
+      <p data-en>MIT licensed. The names HTC, YouTube, Stremio and VLC belong to their owners; Perde is not affiliated with them.</p>
+      <p>© <span id="yil">2026</span> AcarPlus</p>
+    </div>
+    <nav><a href="https://github.com/AcarPlus/perde">GitHub</a><a href="https://github.com/AcarPlus/perde/releases"><span data-tr>Sürümler</span><span data-en>Releases</span></a><a href="https://github.com/AcarPlus/perde/blob/main/LICENSE">MIT</a></nav>
+  </div>
+</footer>
+
+<script src="aile.js"></script>
+</body>
+</html>

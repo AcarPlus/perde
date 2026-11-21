@@ -1,0 +1,14 @@
+# derleme çıktısı
+build/
+# yerel araçlar (JDK, Android build-tools, android.jar, adb, jadx, platform anahtarı) — README'deki adımlarla indirilir
+_tools/
+# yedekler, cihaz dökümleri, üretici APK'ları
+_yedek/
+# yerel cihaz adresi ve kişisel notlar
+cihaz.txt
+_notlar.md
+# imza anahtarları
+*.keystore
+*.jks
+*.pk8
+*.pem
