@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.DEVICE_POWER" />
+    <!-- v3.6 Yansıt: kapalı Miracast alıcısını açabilmek için -->
+    <uses-permission android:name="android.permission.CHANGE_COMPONENT_ENABLED_STATE" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
@@ -27,6 +29,7 @@
         <package android:name="com.htc.htclauncherhighenglishd08" />
         <package android:name="com.htc.closedialog" />
         <package android:name="com.google.android.katniss" />
+        <package android:name="com.softwinner.miracastReceiver" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

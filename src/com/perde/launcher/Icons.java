@@ -179,6 +179,45 @@ final class Icons {
         c.drawCircle(cx + s * 0.20f, cy + s * 0.01f, s * 0.045f, p);
     }
 
+    /** Live duvar: çerçeve içinde dağ + güneş manzarası. */
+    static void live(Canvas c, float cx, float cy, float s, Paint p) {
+        stroke(p, s * 0.07f);
+        R.set(cx - s * 0.44f, cy - s * 0.32f, cx + s * 0.44f, cy + s * 0.32f);
+        c.drawRoundRect(R, s * 0.10f, s * 0.10f, p);
+        p.setStyle(Paint.Style.FILL);
+        c.drawCircle(cx + s * 0.19f, cy - s * 0.12f, s * 0.07f, p);
+        P.reset();
+        P.moveTo(cx - s * 0.34f, cy + s * 0.24f);
+        P.lineTo(cx - s * 0.12f, cy - s * 0.05f);
+        P.lineTo(cx + s * 0.02f, cy + s * 0.11f);
+        P.lineTo(cx + s * 0.13f, cy + s * 0.01f);
+        P.lineTo(cx + s * 0.34f, cy + s * 0.24f);
+        P.close();
+        c.drawPath(P, p);
+    }
+
+    /** Yansıt: ekran + sol altta yayın dalgaları. */
+    static void cast(Canvas c, float cx, float cy, float s, Paint p) {
+        stroke(p, s * 0.07f);
+        P.reset();
+        P.moveTo(cx - s * 0.44f, cy - s * 0.12f);
+        P.lineTo(cx - s * 0.44f, cy - s * 0.26f);
+        P.quadTo(cx - s * 0.44f, cy - s * 0.32f, cx - s * 0.38f, cy - s * 0.32f);
+        P.lineTo(cx + s * 0.38f, cy - s * 0.32f);
+        P.quadTo(cx + s * 0.44f, cy - s * 0.32f, cx + s * 0.44f, cy - s * 0.26f);
+        P.lineTo(cx + s * 0.44f, cy + s * 0.26f);
+        P.quadTo(cx + s * 0.44f, cy + s * 0.32f, cx + s * 0.38f, cy + s * 0.32f);
+        P.lineTo(cx - s * 0.04f, cy + s * 0.32f);
+        c.drawPath(P, p);
+        float bx = cx - s * 0.44f, by = cy + s * 0.32f;
+        R.set(bx - s * 0.30f, by - s * 0.30f, bx + s * 0.30f, by + s * 0.30f);
+        c.drawArc(R, -90, 90, false, p);
+        R.set(bx - s * 0.17f, by - s * 0.17f, bx + s * 0.17f, by + s * 0.17f);
+        c.drawArc(R, -90, 90, false, p);
+        p.setStyle(Paint.Style.FILL);
+        c.drawCircle(bx + s * 0.03f, by - s * 0.03f, s * 0.045f, p);
+    }
+
     static void thermo(Canvas c, float cx, float cy, float s, Paint p) {
         stroke(p, s * 0.08f);
         R.set(cx - s * 0.11f, cy - s * 0.44f, cx + s * 0.11f, cy + s * 0.12f);

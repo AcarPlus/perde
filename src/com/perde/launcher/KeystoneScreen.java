@@ -3,16 +3,12 @@ package com.perde.launcher;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.Path;
-import android.os.IBinder;
-import android.os.Parcel;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-
-import java.lang.reflect.Method;
 
 /**
  * 4 köşe düzeltme (Perde görünümü). Üreticinin HTC ayarlarındaki yolun aynısı: SurfaceFlinger'a 1050 kodlu
@@ -33,9 +29,12 @@ final class KeystoneScreen {
     private final int[] v = new int[8]; // lbx lby ltx lty rtx rty rbx rby (içeri kayma, piksel)
     private int sel;                    // 0..3 köşe, 4 = düğmeler
     private int maxH, maxV;
-    private Diagram diagram;
-    private TextView info, resetB, doneB;
-    private IBinder flinger;
+    private FrameLayout box;
+    private Frame frame;
+    private LinearLayout row, slotRow;
+    private TextView head, info, resetB, doneB, saveB, autoB;
+    private final TextView[] slotB = new TextView[KeystoneProfiles.N];
+    private boolean saveMode;           // "Kaydet"e basıldı: sıradaki yer düğmesi kaydeder
 
     KeystoneScreen(MainActivity a) { this.a = a; }
 
@@ -57,45 +56,99 @@ final class KeystoneScreen {
         maxH = lw / 2 - lw / 8; // üreticinin sınırı (1920 → 720)
         maxV = lh / 2 - lh / 8; // (1080 → 405)
         System.arraycopy(read(), 0, v, 0, 8);
-        sel = 0;
+        // v3.7: kayıtlı yer varsa düğmelerle açılır (yer seçmek tek tuş); köşeler için Yukarı
+        sel = KeystoneProfiles.any(a) ? 4 : 0;
 
-        LinearLayout card = a.newCard("4 köşe düzeltme");
-        card.setMinimumWidth(Ui.dp(640));
-        diagram = new Diagram(a);
-        LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(Ui.dp(480), Ui.dp(270));
-        dl.topMargin = Ui.dp(14);
-        dl.gravity = Gravity.CENTER_HORIZONTAL;
-        card.addView(diagram, dl);
+        // v3.6: tam siyah ekran + kenarlarda %100 beyaz çerçeve. Çerçeve ekranın gerçek kenarı olduğu için
+        // duvardaki görüntünün köşeleri doğrudan görülür; seçili köşede kalın beyaz "L" işareti var.
+        box = new FrameLayout(a);
+        box.setBackgroundColor(0xFF000000);
+        frame = new Frame(a);
+        box.addView(frame, new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout mid = new LinearLayout(a);
+        mid.setOrientation(LinearLayout.VERTICAL);
+        mid.setGravity(Gravity.CENTER_HORIZONTAL);
+        head = Ui.text(a, 30, 0xFFFFFFFF, "sans-serif-light");
+        head.setGravity(Gravity.CENTER);
+        mid.addView(head, new LinearLayout.LayoutParams(-2, -2));
         info = a.newNote("");
-        card.addView(info);
-        LinearLayout row = new LinearLayout(a);
+        info.setTextColor(0xFFFFFFFF);
+        info.setTextSize(16);
+        mid.addView(info);
+        // v3.7: kayıtlı yerler (Oda, Bodrum, …): OK = o yerin köşelerini uygula; "Kaydet"ten sonra OK = buraya kaydet
+        slotRow = new LinearLayout(a);
+        slotRow.setGravity(Gravity.CENTER);
+        for (int i = 0; i < KeystoneProfiles.N; i++) {
+            final int slot = i;
+            slotB[i] = a.newButton("", 190, () -> onSlot(slot));
+            ((LinearLayout.LayoutParams) slotB[i].getLayoutParams()).setMargins(Ui.dp(8), Ui.dp(12), Ui.dp(8), 0);
+            slotB[i].setFocusable(false);
+            slotRow.addView(slotB[i]);
+        }
+        mid.addView(slotRow, new LinearLayout.LayoutParams(-2, -2));
+        row = new LinearLayout(a);
         row.setGravity(Gravity.CENTER);
-        resetB = a.newButton("Sıfırla", 220, () -> {
+        saveB = a.newButton("Kaydet", 190, () -> {
+            saveMode = true;
+            slotB[0].requestFocus();
+            update();
+        });
+        autoB = a.newButton("", 250, () -> {
+            KeystoneProfiles.setAuto(a, !KeystoneProfiles.autoOn(a));
+            update();
+        });
+        resetB = a.newButton("Sıfırla", 190, () -> {
             for (int i = 0; i < 8; i++) v[i] = 0;
             apply();
+            saveMode = false;
             sel = 0;
             update();
         });
-        doneB = a.newButton("Bitti", 220, a::hideOverlay);
-        for (TextView b : new TextView[]{resetB, doneB}) {
+        doneB = a.newButton("Bitti", 190, a::hideOverlay);
+        for (TextView b : new TextView[]{saveB, autoB, resetB, doneB}) {
             ((LinearLayout.LayoutParams) b.getLayoutParams()).setMargins(Ui.dp(8), Ui.dp(12), Ui.dp(8), 0);
             b.setFocusable(false); // köşe ayarlanırken oklar düğmelere kaçmasın
             row.addView(b);
         }
-        card.addView(row, new LinearLayout.LayoutParams(-2, -2));
-        a.showOverlay(card, card);
-        card.setFocusable(true);
-        card.requestFocus();
+        mid.addView(row, new LinearLayout.LayoutParams(-2, -2));
+        KeystoneProfiles.startScan(a); // kaydederken Wi-Fi parmak izi taze olsun
+        box.addView(mid, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+
+        a.showOverlayFull(box);
         a.setOverlayKeys(this::onKey);
+        // beyaz gerçekten %100 olsun: pencere parlaklığı en yüksek, kişisel renk profili geçici olarak kapalı
+        final android.view.Window win = a.getWindow();
+        final android.view.WindowManager.LayoutParams wl = win.getAttributes();
+        final float oldBright = wl.screenBrightness;
+        wl.screenBrightness = 1f;
+        win.setAttributes(wl);
+        final int[] prof = ColorProfiles.load(a);
+        final boolean custom = !ColorProfiles.isDefault(prof);
+        if (custom) ColorProfiles.apply(ColorProfiles.preset(0));
+        a.setOverlayClose(() -> {
+            android.view.WindowManager.LayoutParams l2 = win.getAttributes();
+            l2.screenBrightness = oldBright;
+            win.setAttributes(l2);
+            if (custom) ColorProfiles.apply(prof);
+        });
         update();
     }
 
     private boolean onKey(KeyEvent e) {
         int k = e.getKeyCode();
-        if (sel == 4) { // düğmeler: normal gezinme; köşeye dönmek için yukarı
-            if (k == KeyEvent.KEYCODE_DPAD_UP && e.getAction() == KeyEvent.ACTION_DOWN) {
+        if (sel == 4) { // düğmeler: normal gezinme; en üst sıradan yukarı = köşelere dön
+            if (k == KeyEvent.KEYCODE_DPAD_UP && e.getAction() == KeyEvent.ACTION_DOWN && slotRow.hasFocus()) {
+                saveMode = false;
                 sel = 0;
                 update();
+                return true;
+            }
+            if (k == KeyEvent.KEYCODE_BACK && saveMode) { // kaydetmekten vazgeç
+                if (e.getAction() == KeyEvent.ACTION_UP) {
+                    saveMode = false;
+                    saveB.requestFocus();
+                    update();
+                }
                 return true;
             }
             return false;
@@ -136,84 +189,96 @@ final class KeystoneScreen {
     private static int clamp(int x, int lo, int hi) { return x < lo ? lo : Math.min(x, Math.max(lo, hi)); }
 
     private void apply() {
-        try {
-            if (flinger == null) {
-                Class<?> sm = Class.forName("android.os.ServiceManager");
-                Method g = sm.getMethod("getService", String.class);
-                flinger = (IBinder) g.invoke(null, "SurfaceFlinger");
-            }
-            if (flinger == null) {
-                a.toast("Görüntü servisine ulaşılamadı");
-                return;
-            }
-            Parcel p = Parcel.obtain();
-            try {
-                p.writeInterfaceToken("android.ui.ISurfaceComposer");
-                for (int i = 0; i < 8; i++) p.writeFloat(v[i] * 0.001f);
-                flinger.transact(1050, p, null, 0);
-            } finally {
-                p.recycle();
-            }
-        } catch (Throwable t) {
-            a.toast("4 köşe uygulanamadı (yetki?)");
+        if (!KeystoneProfiles.push(v)) a.toast("4 köşe uygulanamadı (yetki?)");
+    }
+
+    private void onSlot(int slot) {
+        String name = KeystoneProfiles.NAMES[slot];
+        if (saveMode) {
+            boolean wifi = KeystoneProfiles.save(a, slot, v);
+            saveMode = false;
+            a.toast(name + " kaydedildi" + (wifi ? "" : " (Wi-Fi görünmüyor: otomatik tanıma çalışmaz)"));
+            update();
+            return;
         }
+        int[] s = KeystoneProfiles.values(a, slot);
+        if (s == null) {
+            a.toast(name + " boş: köşeleri ayarla, Kaydet'e bas, sonra bu yeri seç");
+            return;
+        }
+        System.arraycopy(s, 0, v, 0, 8);
+        apply();
+        a.toast(name + " uygulandı");
+        update();
+    }
+
+    private int firstSaved() {
+        for (int i = 0; i < KeystoneProfiles.N; i++)
+            if (KeystoneProfiles.has(a, i) && java.util.Arrays.equals(KeystoneProfiles.values(a, i), v)) return i;
+        for (int i = 0; i < KeystoneProfiles.N; i++) if (KeystoneProfiles.has(a, i)) return i;
+        return 0;
     }
 
     private void update() {
         boolean buttons = sel >= 4;
-        resetB.setFocusable(buttons);
-        doneB.setFocusable(buttons);
+        boolean entering = buttons && !(slotRow.hasFocus() || row.hasFocus());
+        for (TextView b : new TextView[]{saveB, autoB, resetB, doneB}) b.setFocusable(buttons);
+        for (int i = 0; i < KeystoneProfiles.N; i++) {
+            slotB[i].setFocusable(buttons);
+            boolean has = KeystoneProfiles.has(a, i);
+            boolean here = has && java.util.Arrays.equals(KeystoneProfiles.values(a, i), v);
+            slotB[i].setText((here ? "✓ " : "") + KeystoneProfiles.NAMES[i] + (has ? "" : " (boş)"));
+        }
+        autoB.setText("Otomatik: " + (KeystoneProfiles.autoOn(a) ? "açık" : "kapalı"));
+        row.setVisibility(buttons ? View.VISIBLE : View.GONE);
+        slotRow.setVisibility(buttons ? View.VISIBLE : View.GONE);
         if (buttons) {
             sel = 4;
-            doneB.requestFocus();
-            info.setText("Yukarı: köşelere dön  ·  Geri: kaydet ve çık");
+            if (saveMode) {
+                head.setText("Hangi yere kaydedeyim?");
+                info.setText("Yeri seçip OK'a bas  ·  Geri: vazgeç");
+            } else {
+                head.setText("4 köşe düzeltme");
+                info.setText("Yer seç: o yerin köşeleri uygulanır  ·  Otomatik: Wi-Fi'ye bakıp yeri kendisi tanır\n"
+                        + "Yukarı (üst sıradan): köşeleri ayarla  ·  Geri: kaydet ve çık");
+            }
+            if (entering) (KeystoneProfiles.any(a) ? slotB[firstSaved()] : saveB).requestFocus();
         } else {
             int xi = ORDER[sel];
-            info.setText(NAMES[sel] + " köşe  ·  " + v[xi] + ", " + v[xi + 1]
-                    + "\nOklar: köşeyi kaydır (basılı tut: hızlı)  ·  OK: sıradaki  ·  Geri: kaydet ve çık");
+            box.requestFocus();
+            head.setText(NAMES[sel] + " köşe  (" + (sel + 1) + "/4)");
+            info.setText("içeri: " + v[xi] + ", " + v[xi + 1]
+                    + "\nOklar: köşeyi kaydır (basılı tut: hızlı)  ·  OK: sıradaki köşe  ·  Geri: kaydet ve çık");
         }
-        diagram.invalidate();
+        frame.invalidate();
     }
 
-    /** Ekranın küçük şeması: düzeltilmiş dörtgen, seçili köşe parlak. */
-    private final class Diagram extends View {
-        private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG), line = new Paint(Paint.ANTI_ALIAS_FLAG),
-                dot = new Paint(Paint.ANTI_ALIAS_FLAG), frame = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Path path = new Path();
+    /** Tam ekran: kenarda %100 beyaz çerçeve, seçili köşede kalın beyaz L. */
+    private final class Frame extends View {
+        private final Paint white = new Paint();
 
-        Diagram(Context c) {
+        Frame(Context c) {
             super(c);
-            fill.setColor(0x3338BDF8);
-            line.setStyle(Paint.Style.STROKE);
-            line.setStrokeWidth(Ui.dp(2));
-            line.setColor(0xFF7DD3FC);
-            frame.setStyle(Paint.Style.STROKE);
-            frame.setStrokeWidth(Ui.dp(1));
-            frame.setColor(0x40FFFFFF);
-            frame.setPathEffect(new android.graphics.DashPathEffect(new float[]{Ui.dp(6), Ui.dp(6)}, 0));
+            white.setColor(0xFFFFFFFF);
+            white.setStyle(Paint.Style.FILL);
         }
 
         @Override
         protected void onDraw(Canvas c) {
-            float w = getWidth(), h = getHeight(), sx = w / (maxH * 8f / 3f), sy = h / (maxV * 8f / 3f);
-            c.drawRect(1, 1, w - 1, h - 1, frame);
-            float[][] pt = {
-                    {v[LT] * sx, v[LT + 1] * sy},
-                    {w - v[RT] * sx, v[RT + 1] * sy},
-                    {w - v[RB] * sx, h - v[RB + 1] * sy},
-                    {v[LB] * sx, h - v[LB + 1] * sy}};
-            path.reset();
-            path.moveTo(pt[0][0], pt[0][1]);
-            for (int i = 1; i < 4; i++) path.lineTo(pt[i][0], pt[i][1]);
-            path.close();
-            c.drawPath(path, fill);
-            c.drawPath(path, line);
-            for (int i = 0; i < 4; i++) {
-                boolean s = i == sel;
-                dot.setColor(s ? 0xFFFFFFFF : 0x99FFFFFF);
-                c.drawCircle(Ui.clamp(pt[i][0], Ui.dp(9), w - Ui.dp(9)), Ui.clamp(pt[i][1], Ui.dp(9), h - Ui.dp(9)),
-                        Ui.dp(s ? 9 : 5), dot);
-            }
+            // v3.7: dış çerçeve ince (2 px): duvar kenarına hizalamak kolay; seçili köşedeki L kalın kalır
+            float w = getWidth(), h = getHeight(), t = 2;
+            c.drawColor(0xFF000000);
+            c.drawRect(0, 0, w, t, white);
+            c.drawRect(0, h - t, w, h, white);
+            c.drawRect(0, 0, t, h, white);
+            c.drawRect(w - t, 0, w, h, white);
+            if (sel >= 4) return;
+            float arm = Ui.dp(150), th = Ui.dp(18);
+            boolean left = sel == 0 || sel == 3, top = sel == 0 || sel == 1;
+            float x0 = left ? 0 : w - arm, y0 = top ? 0 : h - th;
+            c.drawRect(x0, y0, x0 + arm, y0 + th, white);                 // yatay kol
+            float x1 = left ? 0 : w - th, y1 = top ? 0 : h - arm;
+            c.drawRect(x1, y1, x1 + th, y1 + arm, white);                 // dikey kol
         }
     }
 }

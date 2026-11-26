@@ -59,8 +59,13 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
     private AuroraView aurora;
     private TextView date;
     private final PanelView[] panels = new PanelView[4];
-    private final BubbleView[] bubbles = new BubbleView[4];
+    /** 0 Wi-Fi, 1 Bluetooth, 2 Görüntü, 3 Ayarlar, 4 Live, 5 Yansıt (ekranda sıra: BAR_ORDER). */
+    private final BubbleView[] bubbles = new BubbleView[6];
+    private static final int[] BAR_ORDER = {4, 5, 0, 1, 2, 3};
     private BubbleView settingsB;
+    private LinearLayout homeCol;
+    private LiveWall live;
+    static final String MIRACAST = "com.softwinner.miracastReceiver";
     private FrameLayout overlay;
     private View focusBeforeOverlay, lastFocus;
     private SharedPreferences prefs;
@@ -97,7 +102,7 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
         aurora = new AuroraView(this);
         root.addView(aurora, new FrameLayout.LayoutParams(-1, -1));
 
-        LinearLayout col = new LinearLayout(this);
+        LinearLayout col = homeCol = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setPadding(Ui.dp(56), Ui.dp(34), Ui.dp(56), Ui.dp(8));
         col.setClipChildren(false);
@@ -167,7 +172,14 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
                 v -> pulse(v, this::showMore)); // tek basış: Perde ayarları; uzun basış: HTC ayarları (dispatchKeyEvent)
         settingsB.hint = "uzun bas: HTC";
         settingsB.setLongClickable(false);
-        for (BubbleView bv : bubbles) {
+        bubbles[4] = new BubbleView(this, BubbleView.LIVE, "Live", th.bubble[3][0], th.bubble[3][1], sensors,
+                v -> pulse(v, this::showLive));
+        bubbles[4].hint = "canlı duvar";
+        bubbles[5] = new BubbleView(this, BubbleView.CAST, "Yansıt", th.panel[2][0], th.panel[2][1], sensors,
+                v -> pulse(v, this::openMirror));
+        bubbles[5].hint = "telefon ekranı";
+        for (int bi : BAR_ORDER) {
+            BubbleView bv = bubbles[bi];
             bv.setAlpha(0f);
             bv.setTranslationY(Ui.dp(30));
             bar.addView(bv, new LinearLayout.LayoutParams(Ui.dp(124), Ui.dp(140)));
@@ -193,9 +205,116 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
         if (!ColorProfiles.isDefault(gv)) ColorProfiles.apply(gv);
         hideSystemUi();
         updateHdmiSub();
+        // v3.6: Perde live duvarla açılır (tema değişimi gibi yeniden oluşturmalarda değil)
+        if (b == null && prefs.getBoolean("live_acilis", true)) showLive();
+        startKeystoneAuto();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        h.removeCallbacks(keystoneAuto);
+        if (wifiRx != null) {
+            try {
+                unregisterReceiver(wifiRx);
+            } catch (Exception ignored) {
+            }
+            wifiRx = null;
+        }
+    }
+
+    // ---------- 4 köşe: yere göre otomatik (v3.7) ----------
+    // Wi-Fi her bağlandığında (açılışta da) çevredeki ağlar taranır; kayıtlı bir yere belirgin biçimde benziyorsa
+    // o yerin 4 köşe ayarı uygulanır (KeystoneProfiles).
+    private android.content.BroadcastReceiver wifiRx;
+    private boolean wifiWasConnected, autoPending;
+    private final Runnable keystoneAuto = () -> {
+        autoPending = false;
+        String name = KeystoneProfiles.autoApply(this);
+        if (name != null) toast("4 köşe: " + name + " ayarı uygulandı");
+    };
+
+    private void startKeystoneAuto() {
+        if (wifiRx != null) return;
+        wifiRx = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(Context c, Intent i) {
+                if (android.net.wifi.WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(i.getAction())) {
+                    android.net.NetworkInfo ni = i.getParcelableExtra(android.net.wifi.WifiManager.EXTRA_NETWORK_INFO);
+                    boolean conn = ni != null && ni.isConnected();
+                    if (conn && !wifiWasConnected && KeystoneProfiles.autoOn(c) && KeystoneProfiles.any(c)) {
+                        autoPending = true;
+                        KeystoneProfiles.startScan(c);
+                        h.removeCallbacks(keystoneAuto);
+                        h.postDelayed(keystoneAuto, 10_000); // tarama sonucu gelmezse eldeki sonuçlarla
+                    }
+                    wifiWasConnected = conn;
+                } else if (autoPending) { // tarama bitti
+                    h.removeCallbacks(keystoneAuto);
+                    h.postDelayed(keystoneAuto, 300);
+                }
+            }
+        };
+        android.content.IntentFilter f = new android.content.IntentFilter(android.net.wifi.WifiManager.NETWORK_STATE_CHANGED_ACTION);
+        f.addAction(android.net.wifi.WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
+        registerReceiver(wifiRx, f);
     }
 
     private View nightShade;
+
+    // ---------- live duvar ----------
+    void showLive() {
+        if (live != null) return;
+        hideOverlayNow();
+        hideSaver();
+        live = new LiveWall(this);
+        root.addView(live, new FrameLayout.LayoutParams(-1, -1));
+        aurora.setVisibility(View.INVISIBLE);
+        homeCol.setVisibility(View.INVISIBLE);
+        setHomeFocusable(false);
+        live.setFocusable(true);
+        live.requestFocus();
+    }
+
+    void hideLive() {
+        if (live == null) return;
+        final LiveWall l = live;
+        l.close(() -> {
+            live = null;
+            aurora.setVisibility(View.VISIBLE);
+            homeCol.setVisibility(View.VISIBLE);
+            homeCol.setAlpha(0f);
+            homeCol.animate().alpha(1f).setDuration(350).start();
+            root.removeView(l);
+            setHomeFocusable(true);
+            (lastFocus != null ? lastFocus : panels[0]).requestFocus();
+            playIntro();
+            wake();
+            scheduleFrame();
+        });
+    }
+
+    // ---------- telefon yansıtma (Miracast alıcısı) ----------
+    /**
+     * Cihazın kendi Miracast alıcısı (Softwinner). 2026-11-21'de kapatılan uygulamalar arasındaydı; Perde sistem
+     * uygulaması olduğu için gerekirse açar ve başlatır. Telefonda: "Ekranı yansıt / Smart View / Yayınla".
+     */
+    private void openMirror() {
+        PackageManager pm = getPackageManager();
+        try {
+            int st = pm.getApplicationEnabledSetting(MIRACAST);
+            if (st == PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                    || st == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER) {
+                pm.setApplicationEnabledSetting(MIRACAST, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, 0);
+            }
+        } catch (Throwable t) {
+            toast("Yansıtma uygulaması açılamadı");
+            return;
+        }
+        Intent i = new Intent(Intent.ACTION_MAIN).setComponent(new ComponentName(MIRACAST, MIRACAST + ".Miracast"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        safeStart(i);
+    }
 
     // ---------- tam sessizlik ----------
     /**
@@ -248,7 +367,7 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
     };
 
     private void showSaver() {
-        if (saver != null || !resumed) return;
+        if (saver != null || !resumed || live != null) return;
         hideOverlayNow();
         saver = new FrameLayout(this);
         saver.setBackgroundColor(0xFF000000);
@@ -271,6 +390,25 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
         root.addView(saver, new FrameLayout.LayoutParams(-1, -1));
         saver.animate().alpha(1f).setDuration(1500).start();
         h.post(driftSaver);
+    }
+
+    /**
+     * Tam siyah ekran (görüntü kapalı, cihaz ve Wi-Fi açık; ör. uzun video aktarımı sırasında). Kumandada herhangi bir tuş kapatır.
+     * PC'den: adb shell am start -n com.perde.launcher/.MainActivity --ez karart true
+     */
+    private void showBlank() {
+        if (live != null) {
+            final LiveWall l = live;
+            live = null;
+            root.removeView(l);
+        }
+        hideSaver();
+        hideOverlayNow();
+        saver = new FrameLayout(this);
+        saver.setBackgroundColor(0xFF000000);
+        saver.setKeepScreenOn(true); // ekran uykuya dalmasın: Wi-Fi/aktarım sürsün
+        saverBox = null;
+        root.addView(saver, new FrameLayout.LayoutParams(-1, -1));
     }
 
     private boolean hideSaver() {
@@ -420,6 +558,22 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
 
     /** USB filmleri: VLC (USB'yi "Klasörler/Depolama" altında listeler); yoksa cihazın dosya yöneticisi. */
     private void openUsb() {
+        // v3.7: VLC'de en son izlenen dosya biliniyorsa (ve panelde gösteriliyorsa) kalınan yerden açılır
+        if (panels[3].hasResume()) {
+            SharedPreferences p = getSharedPreferences("devam", MODE_PRIVATE);
+            String id = p.getString(VLC + ".id", null);
+            long pos = p.getLong(VLC + ".pos", 0);
+            if (id != null && (id.startsWith("file:") || id.startsWith("content:") || id.startsWith("/"))) {
+                android.net.Uri u = id.startsWith("/") ? android.net.Uri.fromFile(new java.io.File(id)) : android.net.Uri.parse(id);
+                Intent i = new Intent(Intent.ACTION_VIEW).setDataAndType(u, "video/*").setPackage(VLC)
+                        .putExtra("position", Math.max(0, pos - 3000)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                try {
+                    startActivity(i);
+                    return;
+                } catch (Exception ignored) {
+                }
+            }
+        }
         PackageManager pm = getPackageManager();
         for (String pkg : new String[]{VLC, FILES}) {
             Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
@@ -433,22 +587,50 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
     }
 
     // ---------- kaldığın yerden devam ----------
+    // panel sırası: 0 YouTube, 1 Stremio, 2 HDMI (yok), 3 USB (VLC'de izlenen)
+    private static final String[] RESUME_PKG = {YT, STREMIO, null, VLC};
+    private static final String[] RESUME_KEY = {"son_yt", "son_st", null, "son_usb"};
+
+    /** Ayarlar › Son izlenenler: panelde kalınan yer gösterilsin mi (varsayılan açık). */
+    private boolean recentOn(int panel) { return prefs.getBoolean(RESUME_KEY[panel], true); }
+
     private void loadResume() {
         SharedPreferences p = getSharedPreferences("devam", MODE_PRIVATE);
-        String[] pk = {YT, STREMIO};
-        for (int i = 0; i < 2; i++) {
-            String title = p.getString(pk[i] + ".title", null);
-            long time = p.getLong(pk[i] + ".time", 0);
-            long pos = p.getLong(pk[i] + ".pos", -1), dur = p.getLong(pk[i] + ".dur", 0);
+        for (int i : new int[]{0, 1, 3}) {
+            String pk = RESUME_PKG[i];
+            String title = p.getString(pk + ".title", null);
+            long time = p.getLong(pk + ".time", 0);
+            long pos = p.getLong(pk + ".pos", -1), dur = p.getLong(pk + ".dur", 0);
             boolean fresh = System.currentTimeMillis() - time < 14L * 24 * 3600_000L;
             boolean finished = dur > 0 && pos >= 0 && pos > dur * 0.95;
-            if (title == null || !fresh || finished) {
+            boolean off = !recentOn(i) || (i == 3 && usbLabel() == null); // USB: bellek takılı değilse gösterme
+            if (title == null || !fresh || finished || off) {
                 panels[i].setResume(null, null, -1f);
                 continue;
             }
             String line = "▶ Devam: " + title + (pos > 0 ? "  ·  " + fmt(pos) + (dur > 0 ? " / " + fmt(dur) : "") : "");
-            panels[i].setResume(MediaWatcher.loadArt(this, pk[i]), line, dur > 0 && pos >= 0 ? pos / (float) dur : -1f);
+            panels[i].setResume(MediaWatcher.loadArt(this, pk), line, dur > 0 && pos >= 0 ? pos / (float) dur : -1f);
         }
+    }
+
+    private void showRecents(int focusIdx) {
+        LinearLayout card = newCard("Son izlenenler");
+        card.addView(newNote("Açıkken panelde kaldığın yer ve kapağı görünür, OK oradan devam eder.\n"
+                + "Kapalıyken panel sade görünür, OK uygulamayı baştan açar."));
+        String[] names = {"YouTube", "Stremio", "USB"};
+        int[] idx = {0, 1, 3};
+        TextView[] b = new TextView[3];
+        for (int k = 0; k < 3; k++) {
+            final int i = idx[k], kk = k;
+            b[k] = newButton(names[k] + ": " + (recentOn(i) ? "açık" : "kapalı"), 330, () -> {
+                prefs.edit().putBoolean(RESUME_KEY[i], !recentOn(i)).apply();
+                loadResume();
+                showRecents(kk);
+            });
+            card.addView(b[k]);
+        }
+        card.addView(newButton("Geri", 220, () -> showMore(8)));
+        showOverlay(card, b[Math.max(0, Math.min(focusIdx, 2))]);
     }
 
     private static String fmt(long ms) {
@@ -458,6 +640,10 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
 
     /** Devam bilgisi varsa: YouTube'da video kimliği biliniyorsa tam kalınan saniyeden açar; yoksa uygulamayı açar. */
     private void openResumeOrApp(String pkg) {
+        if (YT.equals(pkg) && !recentOn(0)) {
+            openApp(pkg);
+            return;
+        }
         SharedPreferences p = getSharedPreferences("devam", MODE_PRIVATE);
         String id = p.getString(pkg + ".id", null);
         long pos = p.getLong(pkg + ".pos", 0);
@@ -670,7 +856,7 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
       @Override
       public void doFrame(long ns) {
         frameQueued = false;
-        if (!resumed) return;
+        if (!resumed || live != null) return; // live açıkken ana ekran hiç çizilmez (hideLive yeniden başlatır)
         if (++dbgTick % 120 == 0) { // ~2 sn'de bir ölçüm anahtarlarını oku
             String before = Ui.off;
             Ui.readDebug();
@@ -741,10 +927,11 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
                     .setInterpolator(new OvershootInterpolator(1.1f))
                     .setUpdateListener(a -> ((View) pv.getParent()).invalidate()).start();
         }
-        for (int i = 0; i < bubbles.length; i++) {
-            bubbles[i].setScaleX(0.4f);
-            bubbles[i].setScaleY(0.4f);
-            bubbles[i].animate().alpha(1f).translationY(0).scaleX(1f).scaleY(1f).setStartDelay(base + 480 + i * 80L)
+        for (int i = 0; i < BAR_ORDER.length; i++) {
+            BubbleView bv = bubbles[BAR_ORDER[i]];
+            bv.setScaleX(0.4f);
+            bv.setScaleY(0.4f);
+            bv.animate().alpha(1f).translationY(0).scaleX(1f).scaleY(1f).setStartDelay(base + 480 + i * 80L)
                     .setDuration(520).setInterpolator(new OvershootInterpolator(2.2f)).start();
         }
     }
@@ -776,6 +963,7 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
         updateUsbSub();
         loadResume();
         root.post(() -> {
+            if (live != null) return; // giriş animasyonu live'dan çıkınca oynar
             playIntro();
             View cur = getCurrentFocus();
             if (overlay == null && (cur == null || !(cur instanceof PanelView || cur instanceof BubbleView))) {
@@ -806,7 +994,15 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (intent != null && intent.getBooleanExtra("karart", false)) {
+            showBlank();
+            return;
+        }
         // HOME: zaten ana ekrandaysak ilk panele, değilse son seçilene dön
+        if (live != null) { // live açıkken HOME: ana ekrana geç
+            hideLive();
+            return;
+        }
         boolean alreadyHome = hasWindowFocus() && overlay == null;
         hideOverlay();
         if (alreadyHome || lastFocus == null) panels[0].requestFocus();
@@ -844,6 +1040,8 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
             swallowUp = false;
             return true;
         }
+        // live duvar: oklar/OK video değiştirir, Geri ana ekrana döner
+        if (live != null && k != KeyEvent.KEYCODE_HOME && live.onKey(e)) return true;
         // açık ekran tuşları kendisi işliyorsa (4 köşe: oklar köşeyi kaydırır)
         if (overlay != null && overlayKeys != null && k != KeyEvent.KEYCODE_HOME && overlayKeys.onKey(e)) return true;
         if (k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER) {
@@ -1076,6 +1274,25 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
 
     void showOverlay(View card, View focusTarget) { showOverlay(card, focusTarget, false); }
 
+    /** Tam ekran, opak siyah katman (4 köşe düzeltme): yalnız saydamlıkla açılır, ölçeklenmez. */
+    void showOverlayFull(View v) {
+        if (overlay != null) hideOverlayNow();
+        View cur = getCurrentFocus();
+        if (cur instanceof PanelView || cur instanceof BubbleView) focusBeforeOverlay = cur;
+        overlay = new FrameLayout(this);
+        overlay.setBackgroundColor(0xFF000000);
+        overlay.setAlpha(0f);
+        overlay.setClickable(true);
+        drawerOpen = false;
+        overlay.addView(v, new FrameLayout.LayoutParams(-1, -1));
+        root.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
+        mute(overlay);
+        overlay.animate().alpha(1f).setDuration(220).start();
+        setHomeFocusable(false);
+        v.setFocusable(true);
+        v.requestFocus();
+    }
+
     private boolean drawerOpen;
 
     /** drawer = alttan kayan çekmece (uygulamalar); değilse ortada açılan kart. */
@@ -1181,6 +1398,11 @@ public class MainActivity extends Activity implements PanelView.FocusListener {
                 }),
                 newButton("İsim: " + (prefs.getString("isim", "").trim().isEmpty() ? "yok" : prefs.getString("isim", "").trim()),
                         W, this::showName),
+                newButton("Açılışta live: " + (prefs.getBoolean("live_acilis", true) ? "açık" : "kapalı"), W, () -> {
+                    prefs.edit().putBoolean("live_acilis", !prefs.getBoolean("live_acilis", true)).apply();
+                    showMore(7);
+                }),
+                newButton("Son izlenenler", W, () -> showRecents(0)),
         };
         for (int i = 0; i < b.length; i += 2) {
             LinearLayout row = new LinearLayout(this);

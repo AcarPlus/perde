@@ -17,7 +17,7 @@ import android.view.animation.OvershootInterpolator;
 
 /** Alttaki renkli, parlak yuvarlak kısayol. Odaklanınca büyür, çevresinde renkli halka döner, etiketi belirir. */
 final class BubbleView extends View {
-    static final int WIFI = 0, BT = 1, FAN = 2, SETTINGS = 3, PROJ = 4;
+    static final int WIFI = 0, BT = 1, FAN = 2, SETTINGS = 3, PROJ = 4, LIVE = 5, CAST = 6;
 
     final int kind;
     private final String label;
@@ -117,6 +117,8 @@ final class BubbleView extends View {
             case WIFI: Icons.wifi(c, cx, cy + Ui.dp(2), s, ic, wifiOn); break;
             case BT: Icons.bluetooth(c, cx, cy, s, ic); break;
             case PROJ: Icons.projector(c, cx, cy, s, ic); break;
+            case LIVE: Icons.live(c, cx, cy, s, ic); break;
+            case CAST: Icons.cast(c, cx, cy, s, ic); break;
             case SETTINGS:
                 c.save();
                 c.rotate(fc * ((t * 60f) % 360f), cx, cy);

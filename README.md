@@ -14,7 +14,10 @@
 - **Kaldığın yerden devam:** YouTube/Stremio'da en son izlediğin şeyin kapağı, adı ve ilerlemesi panelde görünür.
 - **Kendi Wi-Fi ve Bluetooth ekranları:** ağ seçip şifreyle bağlanma; hoparlör/kulaklık eşleştirme ve bağlama.
 - **Görüntü ayarları:** parlaklık, kontrast, renk doygunluğu, renk sıcaklığı, kırmızı/yeşil/mavi dengesi ve hazır profiller (Sinema, Sıcak, Soğuk, Canlı, Göz dostu). Ayarlar anında uygulanır ve açılışta geri gelir.
-- **4 köşe düzeltme:** üreticinin yöntemiyle, kumandanın ok tuşlarıyla.
+- **Live duvar:** Perde sessiz, kesintisiz manzara videolarıyla açılır (her video 5 dk, bitince sıradaki). ◀ ▶ önceki/sıradaki, OK videonun adı, ▲ döngü (aynı video başa sarar), ▼ ayarlar (mod ve ses), Geri ana ekran; ana ekrandaki **Live** baloncuğu geri getirir. Live en son kapatıldığı modda (ve döngü açıksa aynı videoyla) açılır. Videolar `/sdcard/PerdeLive/<klasör>/` altından okunur, her klasör bir mod; `gotik_*`, ejderha ve fantastik kale klasörleri tek **Gotik** modunda toplanır. Depoda video yok; kendi videolarınızı `adb push` ile gönderin. Kapatmak: Ayarlar › Açılışta live.
+- **Yansıt (v3.6):** cihazın kendi Miracast alıcısını tek tıkla açar; telefonda "Ekranı yansıt / Smart View / Yayınla" seçilir. Telefonun Miracast desteklemesi gerekir (Samsung, Xiaomi, Oppo vb. destekler; Pixel desteklemez).
+- **4 köşe düzeltme:** üreticinin yöntemiyle, kumandanın ok tuşlarıyla. Siyah ekranda ince beyaz çerçeve: duvardaki gerçek köşeler doğrudan görünür. Konum kayıtları (Oda, Bodrum, …) Wi-Fi çevresinden tanınıp kendiliğinden uygulanır.
+- **Ekranı karart:** `adb shell am start -n com.perde.launcher/.MainActivity --ez karart true` görüntüyü siyaha çeker, cihaz ve Wi-Fi açık kalır (uzun dosya aktarımları için); kumandada herhangi bir tuş geri açar.
 - **USB bellek:** takınca "Aç?" sorar, filmleri VLC ile açar.
 - **HDMI:** tek tuşla açılır; kablo takılınca haber verir.
 - **Sessiz ve serin:** arayüz sesi yok, 30 sn işlem yoksa animasyonlar durur, 5 dk sonra bekleme saati. Kare hızı 30'un altına düşerse efektler kendiliğinden hafifler.

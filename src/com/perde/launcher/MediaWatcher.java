@@ -25,7 +25,7 @@ import java.util.Map;
  * Bildirimlerin kendisine hiç bakmaz.
  */
 public class MediaWatcher extends NotificationListenerService {
-    static final String[] PKGS = {MainActivity.YT, MainActivity.STREMIO};
+    static final String[] PKGS = {MainActivity.YT, MainActivity.STREMIO, MainActivity.VLC}; // v3.7: VLC = USB panelinde son izlenen
 
     private MediaSessionManager msm;
     private final Map<MediaController, MediaController.Callback> tracked = new HashMap<>();

@@ -35,7 +35,7 @@ if (-not $Normal) {
 }
 Invoke-Step "$BT\aapt2.exe" @('link', '-o', "$B\base.apk", '-I', $JAR, '--manifest', $MAN,
     "$B\res.zip", '--java', "$B\gen", '--min-sdk-version', '21', '--target-sdk-version', '35',
-    '--version-code', '15', '--version-name', '3.5')
+    '--version-code', '24', '--version-name', '3.14')
 
 $srcs = Get-ChildItem "$P\src", "$B\gen" -Recurse -Filter *.java | ForEach-Object FullName
 Invoke-Step javac (@('-encoding', 'UTF-8', '--release', '8', '-classpath', $JAR, '-d', "$B\classes") + $srcs)
