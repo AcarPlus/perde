@@ -16,7 +16,7 @@
 - **Görüntü ayarları:** parlaklık, kontrast, renk doygunluğu, renk sıcaklığı, kırmızı/yeşil/mavi dengesi ve hazır profiller (Sinema, Sıcak, Soğuk, Canlı, Göz dostu). Ayarlar anında uygulanır ve açılışta geri gelir.
 - **Live duvar:** Perde sessiz, kesintisiz manzara videolarıyla açılır (her video 5 dk, bitince sıradaki). ◀ ▶ önceki/sıradaki, OK videonun adı, ▲ döngü (aynı video başa sarar), ▼ ayarlar (mod ve ses), Geri ana ekran; ana ekrandaki **Live** baloncuğu geri getirir. Live en son kapatıldığı modda (ve döngü açıksa aynı videoyla) açılır. Videolar `/sdcard/PerdeLive/<klasör>/` altından okunur, her klasör bir mod; `gotik_*`, ejderha ve fantastik kale klasörleri tek **Gotik** modunda toplanır. Depoda video yok; kendi videolarınızı `adb push` ile gönderin. Kapatmak: Ayarlar › Açılışta live.
 - **Yansıt (v3.6):** cihazın kendi Miracast alıcısını tek tıkla açar; telefonda "Ekranı yansıt / Smart View / Yayınla" seçilir. Telefonun Miracast desteklemesi gerekir (Samsung, Xiaomi, Oppo vb. destekler; Pixel desteklemez).
-- **4 köşe düzeltme:** üreticinin yöntemiyle, kumandanın ok tuşlarıyla. Siyah ekranda ince beyaz çerçeve: duvardaki gerçek köşeler doğrudan görünür. Konum kayıtları (Oda, Bodrum, …) Wi-Fi çevresinden tanınıp kendiliğinden uygulanır.
+- **4 köşe düzeltme:** üreticinin yöntemiyle, kumandanın ok tuşlarıyla. Siyah ekranda ince beyaz çerçeve: duvardaki gerçek köşeler doğrudan görünür. Konum kayıtları (Oda, Bodrum, …) Wi-Fi çevresinden tanınıp kendiliğinden uygulanır. **Yön** düğmesi: Düz / Ters (tavan) / Aynalı (arkadan) / Ters aynalı.
 - **Ekranı karart:** `adb shell am start -n com.perde.launcher/.MainActivity --ez karart true` görüntüyü siyaha çeker, cihaz ve Wi-Fi açık kalır (uzun dosya aktarımları için); kumandada herhangi bir tuş geri açar.
 - **USB bellek:** takınca "Aç?" sorar, filmleri VLC ile açar.
 - **HDMI:** tek tuşla açılır; kablo takılınca haber verir.
@@ -86,7 +86,7 @@ Gradle gerekmez; `build.ps1` aapt2 → javac → d8 → zipalign → apksigner z
 
 **Perde** ("curtain" in Turkish) is a replacement home screen for the **HY350** Android TV 11 projector: four big panels
 (YouTube, Stremio, HDMI, USB) with "continue watching", its own Wi-Fi and Bluetooth screens, picture settings
-(brightness, contrast, saturation, colour temperature, RGB balance, presets), 4-corner keystone, USB auto-open in VLC,
+(brightness, contrast, saturation, colour temperature, RGB balance, presets), 4-corner keystone with projection orientation (normal/ceiling/rear), USB auto-open in VLC,
 no UI sounds and low CPU use when idle. The UI is in Turkish.
 
 **Compatibility:** Perde is signed as a *system app* with the public AOSP test platform key, so it installs only on
