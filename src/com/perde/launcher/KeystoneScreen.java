@@ -17,22 +17,27 @@ import android.widget.TextView;
  *
  * Kumanda: OK = sıradaki köşe (sol üst → sağ üst → sağ alt → sol alt → düğmeler), oklar = seçili köşeyi o yöne
  * kaydır (basılı tutunca hızlanır), Geri = kaydet ve çık.
+ *
+ * v3.15: "Yön" düğmesi (Düz / Ters / Aynalı / Ters aynalı, `Projection`). Köşe değerleri çerçeve arabelleğinde,
+ * panel aynalaması ondan sonra: aynalı yönde ekrandaki sol üst köşe duvarda başka köşeye düşer. Bu yüzden
+ * seçim, isim ve oklar DUVARDAKİ köşeye göre çevrilir; yön değişince değerler duvardaki şekli koruyacak
+ * biçimde karşı köşelere taşınır.
  */
 final class KeystoneScreen {
     static final String[] PROPS = {"lbx", "lby", "ltx", "lty", "rtx", "rty", "rbx", "rby"};
     private static final String[] NAMES = {"Sol üst", "Sağ üst", "Sağ alt", "Sol alt"};
-    // köşe sırası (ekranda saat yönü): LT, RT, RB, LB → dizideki x indeksleri
+    // dizideki x indeksleri (çerçeve arabelleğinde); duvardaki sıra fbCorner() ile
     private static final int LT = 2, RT = 4, RB = 6, LB = 0;
-    private static final int[] ORDER = {LT, RT, RB, LB};
 
     private final MainActivity a;
     private final int[] v = new int[8]; // lbx lby ltx lty rtx rty rbx rby (içeri kayma, piksel)
-    private int sel;                    // 0..3 köşe, 4 = düğmeler
+    private int sel;                    // 0..3 köşe (duvarda saat yönü), 4 = düğmeler
+    private int mirror;                 // Projection değeri (0..3); okunamazsa -1
     private int maxH, maxV;
     private FrameLayout box;
     private Frame frame;
     private LinearLayout row, slotRow;
-    private TextView head, info, resetB, doneB, saveB, autoB;
+    private TextView head, info, resetB, doneB, saveB, autoB, yonB;
     private final TextView[] slotB = new TextView[KeystoneProfiles.N];
     private boolean saveMode;           // "Kaydet"e basıldı: sıradaki yer düğmesi kaydeder
 
@@ -56,6 +61,7 @@ final class KeystoneScreen {
         maxH = lw / 2 - lw / 8; // üreticinin sınırı (1920 → 720)
         maxV = lh / 2 - lh / 8; // (1080 → 405)
         System.arraycopy(read(), 0, v, 0, 8);
+        mirror = Projection.get();
         // v3.7: kayıtlı yer varsa düğmelerle açılır (yer seçmek tek tuş); köşeler için Yukarı
         sel = KeystoneProfiles.any(a) ? 4 : 0;
 
@@ -104,8 +110,9 @@ final class KeystoneScreen {
             sel = 0;
             update();
         });
+        yonB = a.newButton("", 230, this::nextMirror);
         doneB = a.newButton("Bitti", 190, a::hideOverlay);
-        for (TextView b : new TextView[]{saveB, autoB, resetB, doneB}) {
+        for (TextView b : new TextView[]{saveB, yonB, autoB, resetB, doneB}) {
             ((LinearLayout.LayoutParams) b.getLayoutParams()).setMargins(Ui.dp(8), Ui.dp(12), Ui.dp(8), 0);
             b.setFocusable(false); // köşe ayarlanırken oklar düğmelere kaçmasın
             row.addView(b);
@@ -169,7 +176,10 @@ final class KeystoneScreen {
         else return false;
         if (!down) return true;
         int step = Math.min(2 + e.getRepeatCount(), 14);
-        move(ORDER[sel], dx * step, dy * step);
+        int m = Math.max(mirror, 0);    // duvardaki yön → çerçeve arabelleğindeki yön
+        if ((m & Projection.H) != 0) dx = -dx;
+        if ((m & Projection.V) != 0) dy = -dy;
+        move(fbCorner(sel), dx * step, dy * step);
         return true;
     }
 
@@ -184,6 +194,45 @@ final class KeystoneScreen {
         v[xi + 1] = clamp(v[xi + 1] + inY, 0, maxV - v[oy + 1]);
         apply();
         update();
+    }
+
+    /** Duvardaki köşe (0 sol üst, 1 sağ üst, 2 sağ alt, 3 sol alt) → çerçeve arabelleğindeki köşenin x indeksi. */
+    private int fbCorner(int wall) {
+        boolean left = wall == 0 || wall == 3, top = wall == 0 || wall == 1;
+        int m = Math.max(mirror, 0);
+        if ((m & Projection.H) != 0) left = !left;
+        if ((m & Projection.V) != 0) top = !top;
+        return left ? (top ? LT : LB) : (top ? RT : RB);
+    }
+
+    private void nextMirror() {
+        if (mirror < 0) mirror = Projection.get();
+        if (mirror < 0) {
+            a.toast("Yön okunamadı (TvServer servisine ulaşılamadı)");
+            return;
+        }
+        int n = Projection.next(mirror);
+        if (!Projection.set(n)) {
+            a.toast("Yön değiştirilemedi");
+            mirror = Projection.get();
+            update();
+            return;
+        }
+        // duvardaki 4 köşe şekli aynı kalsın: değişen eksende karşı köşelerin değerlerini yer değiştir
+        int d = mirror ^ n;
+        if ((d & Projection.H) != 0) { swap(LT, RT); swap(LB, RB); }
+        if ((d & Projection.V) != 0) { swap(LT, LB); swap(RT, RB); }
+        mirror = n;
+        apply();
+        update();
+    }
+
+    private void swap(int i, int j) {
+        for (int k = 0; k < 2; k++) {
+            int t = v[i + k];
+            v[i + k] = v[j + k];
+            v[j + k] = t;
+        }
     }
 
     private static int clamp(int x, int lo, int hi) { return x < lo ? lo : Math.min(x, Math.max(lo, hi)); }
@@ -222,7 +271,7 @@ final class KeystoneScreen {
     private void update() {
         boolean buttons = sel >= 4;
         boolean entering = buttons && !(slotRow.hasFocus() || row.hasFocus());
-        for (TextView b : new TextView[]{saveB, autoB, resetB, doneB}) b.setFocusable(buttons);
+        for (TextView b : new TextView[]{saveB, yonB, autoB, resetB, doneB}) b.setFocusable(buttons);
         for (int i = 0; i < KeystoneProfiles.N; i++) {
             slotB[i].setFocusable(buttons);
             boolean has = KeystoneProfiles.has(a, i);
@@ -230,6 +279,7 @@ final class KeystoneScreen {
             slotB[i].setText((here ? "✓ " : "") + KeystoneProfiles.NAMES[i] + (has ? "" : " (boş)"));
         }
         autoB.setText("Otomatik: " + (KeystoneProfiles.autoOn(a) ? "açık" : "kapalı"));
+        yonB.setText("Yön: " + (mirror < 0 ? "?" : Projection.name(mirror)));
         row.setVisibility(buttons ? View.VISIBLE : View.GONE);
         slotRow.setVisibility(buttons ? View.VISIBLE : View.GONE);
         if (buttons) {
@@ -240,11 +290,12 @@ final class KeystoneScreen {
             } else {
                 head.setText("4 köşe düzeltme");
                 info.setText("Yer seç: o yerin köşeleri uygulanır  ·  Otomatik: Wi-Fi'ye bakıp yeri kendisi tanır\n"
+                        + "Yön: Düz / Ters (tavan) / Aynalı (arkadan) / Ters aynalı\n"
                         + "Yukarı (üst sıradan): köşeleri ayarla  ·  Geri: kaydet ve çık");
             }
             if (entering) (KeystoneProfiles.any(a) ? slotB[firstSaved()] : saveB).requestFocus();
         } else {
-            int xi = ORDER[sel];
+            int xi = fbCorner(sel);
             box.requestFocus();
             head.setText(NAMES[sel] + " köşe  (" + (sel + 1) + "/4)");
             info.setText("içeri: " + v[xi] + ", " + v[xi + 1]
@@ -274,7 +325,8 @@ final class KeystoneScreen {
             c.drawRect(w - t, 0, w, h, white);
             if (sel >= 4) return;
             float arm = Ui.dp(150), th = Ui.dp(18);
-            boolean left = sel == 0 || sel == 3, top = sel == 0 || sel == 1;
+            int xi = fbCorner(sel);     // L çerçeve arabelleğinde çizilir; duvarda seçili köşeye düşer
+            boolean left = xi == LT || xi == LB, top = xi == LT || xi == RT;
             float x0 = left ? 0 : w - arm, y0 = top ? 0 : h - th;
             c.drawRect(x0, y0, x0 + arm, y0 + th, white);                 // yatay kol
             float x1 = left ? 0 : w - th, y1 = top ? 0 : h - arm;
